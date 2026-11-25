@@ -1,0 +1,1377 @@
+diff --git a/src/Components/Flash/CommonSettings/index.jsx b/src/Components/Flash/CommonSettings/index.jsx
+index b162656..8fb44f9 100644
+--- a/src/Components/Flash/CommonSettings/index.jsx
++++ b/src/Components/Flash/CommonSettings/index.jsx
+@@ -262,6 +262,7 @@ function CommonSettings({ unsupported }) {
+           if(directInput) {
+             return (
+               <Number
++                decimals={setting.decimals}
+                 disabled={disabled}
+                 factor={setting.displayFactor}
+                 hint={hint}
+@@ -282,6 +283,7 @@ function CommonSettings({ unsupported }) {
+ 
+           return (
+             <Slider
++              decimals={setting.decimals}
+               disableValue={disableValue}
+               disabled={disabled}
+               factor={setting.displayFactor}
+diff --git a/src/Components/Flash/Escs/Esc/SettingsHandler/Settings/index.jsx b/src/Components/Flash/Escs/Esc/SettingsHandler/Settings/index.jsx
+index 0b96adc..24eef78 100644
+--- a/src/Components/Flash/Escs/Esc/SettingsHandler/Settings/index.jsx
++++ b/src/Components/Flash/Escs/Esc/SettingsHandler/Settings/index.jsx
+@@ -69,6 +69,7 @@ function Settings({
+         if(directInput) {
+           return (
+             <Number
++              decimals={setting.decimals}
+               disabled={disabled}
+               factor={setting.factor || setting.displayFactor}
+               hint={hint}
+@@ -88,6 +89,7 @@ function Settings({
+ 
+         return (
+           <Slider
++            decimals={setting.decimals}
+             disabled={disabled}
+             factor={setting.factor || setting.displayFactor}
+             hint={hint}
+diff --git a/src/Components/Input/Number/index.jsx b/src/Components/Input/Number/index.jsx
+index 8b2a01f..2fbe280 100644
+--- a/src/Components/Input/Number/index.jsx
++++ b/src/Components/Input/Number/index.jsx
+@@ -19,36 +19,46 @@ function Number({
+   offset,
+   factor,
+   step,
++  decimals,
+   hint,
+   disabled,
+ }) {
+-  const [displayValue, setDisplayValue] = useState(value * factor + offset);
++  // Settings with a fractional step are shown with decimals
++  const toDisplayValue = useCallback((value) => {
++    const precision = Math.pow(10, decimals);
++
++    return decimals > 0 ? Math.round((value * factor + offset) * precision) / precision : value * factor + offset;
++  }, [decimals, factor, offset]);
++
++  const [displayValue, setDisplayValue] = useState(toDisplayValue(value));
+ 
+   const updateValue = useCallback(() => {
+     let value = displayValue;
+-    value = Math.round((value - offset) / factor);
+ 
+-    if((value + offset) < min) {
+-      value = (min - offset) / factor;
++    // min and max are limits of the value as it is displayed
++    if(value < min) {
++      value = min;
+     }
+ 
+-    if((value + offset) > max) {
+-      value = (max - offset) / factor;
++    if(value > max) {
++      value = max;
+     }
+ 
++    value = (value - offset) / factor;
++
+     value = Math.round(value);
+     if(isNaN(value)) {
+       value = (min - offset) / factor;
+     }
+ 
+-    setDisplayValue(value * factor + offset);
++    setDisplayValue(toDisplayValue(value));
+     onChange(name, value);
+-  }, [displayValue, offset, factor, min, max, onChange, name]);
++  }, [displayValue, offset, factor, min, max, onChange, name, toDisplayValue]);
+ 
+   const handleChange = useCallback((e) => {
+-    let value = parseInt(e.target.value, 10);
++    let value = decimals > 0 ? parseFloat(e.target.value) : parseInt(e.target.value, 10);
+     setDisplayValue(value);
+-  }, []);
++  }, [decimals]);
+ 
+   return (
+     <div className="number-text">
+@@ -80,6 +90,7 @@ function Number({
+ }
+ 
+ Number.defaultProps = {
++  decimals: 0,
+   disabled: false,
+   factor: 1,
+   hint: null,
+@@ -91,6 +102,7 @@ Number.defaultProps = {
+   value: 0,
+ };
+ Number.propTypes = {
++  decimals: PropTypes.number,
+   disabled: PropTypes.bool,
+   factor: PropTypes.number,
+   hint: PropTypes.string,
+diff --git a/src/Components/Input/Slider/index.jsx b/src/Components/Input/Slider/index.jsx
+index 0df25d0..2c0c2e5 100644
+--- a/src/Components/Input/Slider/index.jsx
++++ b/src/Components/Input/Slider/index.jsx
+@@ -26,6 +26,7 @@ function Slider({
+   offset,
+   factor,
+   round,
++  decimals,
+   hint,
+   disabled,
+ }) {
+@@ -36,43 +37,61 @@ function Slider({
+     setCurrentValue(value);
+   }, [value]);
+ 
++  // Settings with a fractional step are shown with decimals
++  const precision = Math.pow(10, decimals);
++  const roundDisplayValue = useCallback(
++    (value) => Math.round(value * precision) / precision,
++    [precision]
++  );
++
+   const getDisplayValue = () => {
+     let value = factor * currentValue + offset;
+ 
+     if (round !== null) {
+-      value = Math.round(value);
++      value = roundDisplayValue(value);
+     }
+ 
+     return value;
+   };
+ 
++  /**
++   * Convert a value shown on the slider back to the value that is stored.
++   *
++   * With a fractional factor the division is not exact, rounding down would
++   * every so often end up one step too low.
++   */
++  const toStoredValue = useCallback((value) => {
++    const stored = (value - offset) / factor;
++
++    return decimals > 0 ? Math.round(stored) : Math.floor(stored);
++  }, [offset, factor, decimals]);
++
+   /* istanbul ignore next */
+   const updateValue = useCallback((value) => {
+-    value = Math.floor((value - offset) / factor);
+-    setCurrentValue(value);
+-  }, [offset, factor]);
++    setCurrentValue(toStoredValue(value));
++  }, [toStoredValue]);
+ 
+   // Makes no sense to test, component has its own test, we just assume that
+   // the slider actually slides.
+   /* istanbul ignore next */
+   const handleUpdate = useCallback((value) => {
+-    value = Math.floor((value - offset) / factor);
++    value = toStoredValue(value);
+ 
+     // Timout needed for individual settings
+     setTimeout(() => {
+       onChange(name, value);
+     }, 100);
+-  }, [onChange, offset, factor, name]);
++  }, [onChange, toStoredValue, name]);
+ 
+   const format = useCallback((value) => {
+-    let label = `${value}${suffix}`;
++    let label = `${decimals > 0 ? roundDisplayValue(value) : value}${suffix}`;
+ 
+     if (value === disableValue) {
+       label = t("disabled");
+     }
+ 
+     return label;
+-  }, [suffix, disableValue, t]);
++  }, [suffix, disableValue, t, decimals, roundDisplayValue]);
+ 
+   return (
+     <div className="number">
+@@ -104,6 +123,7 @@ function Slider({
+ }
+ 
+ Slider.defaultProps = {
++  decimals: 0,
+   disableValue: null,
+   disabled: false,
+   factor: 1,
+@@ -118,6 +138,7 @@ Slider.defaultProps = {
+   value: 0,
+ };
+ Slider.propTypes = {
++  decimals: PropTypes.number,
+   disableValue: PropTypes.number,
+   disabled: PropTypes.bool,
+   factor: PropTypes.number,
+diff --git a/src/index.jsx b/src/index.jsx
+index 82efbb4..37518a7 100644
+--- a/src/index.jsx
++++ b/src/index.jsx
+@@ -26,6 +26,8 @@ languages.forEach((language) => {
+ 
+ const { language } = store.getState();
+ i18next.init({
++  // Texts that are not translated yet are shown in English instead of as keys
++  fallbackLng: settings.defaultLanguage,
+   interpolation: { escapeValue: false },
+   lng: language.current,
+   resources,
+diff --git a/src/sources/AM32/__tests__/extendedLayout.test.js b/src/sources/AM32/__tests__/extendedLayout.test.js
+new file mode 100644
+index 0000000..5c6cf31
+--- /dev/null
++++ b/src/sources/AM32/__tests__/extendedLayout.test.js
+@@ -0,0 +1,343 @@
++import Convert from '../../../utils/helpers/Convert';
++import { source } from '../';
++
++const EEPROM = source.getEeprom();
++const SETTINGS_DESCRIPTIONS = source.getSettingsDescriptions();
++
++/**
++ * Default EEPROM image for EEPROM version 4 as shipped with the AM32
++ * configurator (public/eeprom-defaults/DEFAULT/v4.bin). No melody, no CAN
++ * settings.
++ */
++const EEPROM_V4 = new Uint8Array(0xC0).fill(0xFF);
++EEPROM_V4.set([
++  0x01, 0x04, 0x01, 0x02, 0x15, 0xA0, 0x04, 0x00, 0x0A, 0x64, 0x00, 0x32, 0x02, 0x00, 0x35, 0x31,
++  0x20, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x1A, 0x18, 0x64, 0x37, 0x0E, 0x00, 0x00, 0x05, 0x00,
++  0x80, 0x80, 0x80, 0x32, 0x00, 0x32, 0x00, 0x00, 0x0F, 0x0A, 0x0A, 0x8D, 0x66, 0x06, 0x01, 0x00,
++]);
++
++const getSetting = (revision, name) => (
++  source.getCommonSettings(revision).base.find((setting) => setting.name === name)
++);
++
++describe('AM32 extended EEPROM layout', () => {
++  it('should be used for EEPROM version 3 and up', () => {
++    [0, 1, 2, '2'].forEach((revision) => {
++      expect(source.hasExtendedLayout(revision)).toBeFalsy();
++      expect(source.getLayout(revision)).toBe(EEPROM.LAYOUT);
++      expect(source.getLayoutSize(revision)).toEqual(0xB0);
++    });
++
++    [3, 4, '4', 5].forEach((revision) => {
++      expect(source.hasExtendedLayout(revision)).toBeTruthy();
++      expect(source.getLayout(revision)).toBe(EEPROM.LAYOUT_EXTENDED);
++      expect(source.getLayoutSize(revision)).toEqual(0xC0);
++    });
++
++    // Without a revision and on an erased EEPROM nothing changes
++    expect(source.getLayout()).toBe(EEPROM.LAYOUT);
++    expect(source.getLayoutSize()).toEqual(0xB0);
++    expect(source.hasExtendedLayout(0xFF)).toBeFalsy();
++  });
++
++  it('should not overlap and stay within the EEPROM', () => {
++    const used = new Array(EEPROM.LAYOUT_SIZE_EXTENDED).fill(null);
++    for(const [name, {
++      offset, size,
++    }] of Object.entries(EEPROM.LAYOUT_EXTENDED)) {
++      for(let i = offset; i < offset + size; i += 1) {
++        expect(i).toBeLessThan(EEPROM.LAYOUT_SIZE_EXTENDED);
++        expect(`${i}: ${used[i]}`).toEqual(`${i}: null`);
++        used[i] = name;
++      }
++    }
++
++    // Reserved bytes and the CAN block are not part of the layout
++    const unknown = used.map((name, i) => (name ? null : i)).filter((i) => i !== null);
++    expect(unknown).toEqual([0x0F, 0x10, ...Array.from({ length: 16 }, (_, i) => 0xB0 + i)]);
++    expect(EEPROM.LAYOUT_EXTENDED.NAME).toBeUndefined();
++  });
++
++  it('should read settings from the positions the firmware uses', () => {
++    const settings = Convert.arrayToSettingsObject(EEPROM_V4, EEPROM.LAYOUT_EXTENDED);
++
++    expect(settings).toMatchObject({
++      BOOT_BYTE: 1,
++      LAYOUT_REVISION: 4,
++      BOOT_LOADER_REVISION: 1,
++      MAIN_REVISION: 2,
++      SUB_REVISION: 21,
++      MAX_RAMP: 160,
++      MINIMUM_DUTY_CYCLE: 4,
++      DISABLE_STICK_CALIBRATION: 0,
++      ABSOLUTE_VOLTAGE_CUTOFF: 10,
++      CURRENT_P: 100,
++      CURRENT_I: 0,
++      CURRENT_D: 50,
++      ACTIVE_BRAKE_POWER: 2,
++      BRAKE_ON_ZERO_THROTTLE: 0,
++      MOTOR_DIRECTION: 0,
++      BIDIRECTIONAL_MODE: 0,
++      SINUSOIDAL_STARTUP: 0,
++      COMPLEMENTARY_PWM: 1,
++      VARIABLE_PWM_FREQUENCY: 1,
++      STUCK_ROTOR_PROTECTION: 1,
++      TIMING_ADVANCE: 26,
++      PWM_FREQUENCY: 24,
++      STARTUP_POWER: 100,
++      MOTOR_KV: 55,
++      MOTOR_POLES: 14,
++      BRAKE_ON_STOP: 0,
++      STALL_PROTECTION: 0,
++      BEEP_VOLUME: 5,
++      INTERVAL_TELEMETRY: 0,
++      SERVO_LOW_THRESHOLD: 128,
++      SERVO_HIGH_THRESHOLD: 128,
++      SERVO_NEUTRAL: 128,
++      SERVO_DEAD_BAND: 50,
++      LOW_VOLTAGE_CUTOFF: 0,
++      LOW_VOLTAGE_THRESHOLD: 50,
++      RC_CAR_REVERSING: 0,
++      USE_HALL_SENSORS: 0,
++      SINE_MODE_RANGE: 15,
++      BRAKE_STRENGTH: 10,
++      RUNNING_BRAKE_LEVEL: 10,
++      TEMPERATURE_LIMIT: 141,
++      CURRENT_LIMIT: 102,
++      SINE_MODE_POWER: 6,
++      ESC_PROTOCOL: 1,
++      AUTO_ADVANCE: 0,
++    });
++
++    expect(settings.STARTUP_MELODY).toEqual(Array.from(EEPROM_V4.subarray(0x30, 0xB0)));
++  });
++
++  it('should write back exactly what has been read', () => {
++    const settings = Convert.arrayToSettingsObject(EEPROM_V4, EEPROM.LAYOUT_EXTENDED);
++    const written = Convert.objectToSettingsArray(
++      settings,
++      EEPROM.LAYOUT_EXTENDED,
++      EEPROM.LAYOUT_SIZE_EXTENDED,
++      Array.from(EEPROM_V4)
++    );
++
++    expect(Array.from(written)).toEqual(Array.from(EEPROM_V4));
++  });
++
++  it('should keep bytes it does not know about', () => {
++    const image = Uint8Array.from(EEPROM_V4);
++
++    // Reserved bytes, a melody and the CAN settings of a CAN ESC
++    image.set([0x12, 0x34], 0x0F);
++    image.set([2, 58, 4, 32, 52, 66, 13, 0, 200, 255, 0, 9], 0x30);
++    image.set([7, 2, 1, 50, 0, 80, 0, 1, 9, 8, 7, 6, 5, 4, 3, 2], 0xB0);
++
++    const settings = Convert.arrayToSettingsObject(image, EEPROM.LAYOUT_EXTENDED);
++
++    // A slider and a selection - the latter hands back a string
++    settings.MAX_RAMP = 42;
++    settings.BRAKE_ON_ZERO_THROTTLE = '2';
++
++    const written = Convert.objectToSettingsArray(
++      settings,
++      EEPROM.LAYOUT_EXTENDED,
++      EEPROM.LAYOUT_SIZE_EXTENDED,
++      Array.from(image)
++    );
++
++    const changed = [];
++    written.forEach((value, i) => {
++      if(value !== image[i]) {
++        changed.push([i, value]);
++      }
++    });
++
++    expect(changed).toEqual([[0x05, 42], [0x0D, 2]]);
++  });
++
++  it('should keep the value on the ESC if a setting is missing', () => {
++    const settings = Convert.arrayToSettingsObject(EEPROM_V4, EEPROM.LAYOUT_EXTENDED);
++    delete settings.CURRENT_P;
++    delete settings.STARTUP_MELODY;
++    settings.MOTOR_POLES = 12;
++
++    const written = Convert.objectToSettingsArray(
++      settings,
++      EEPROM.LAYOUT_EXTENDED,
++      EEPROM.LAYOUT_SIZE_EXTENDED,
++      Array.from(EEPROM_V4)
++    );
++
++    const expected = Uint8Array.from(EEPROM_V4);
++    expected[0x1B] = 12;
++    expect(Array.from(written)).toEqual(Array.from(expected));
++  });
++
++  it('should erase unknown bytes when there is nothing to keep', () => {
++    const settings = Convert.arrayToSettingsObject(EEPROM_V4, EEPROM.LAYOUT_EXTENDED);
++    const written = Convert.objectToSettingsArray(settings, EEPROM.LAYOUT_EXTENDED, EEPROM.LAYOUT_SIZE_EXTENDED);
++
++    expect(Array.from(written.subarray(0x0F, 0x11))).toEqual([0xFF, 0xFF]);
++    expect(Array.from(written.subarray(0, 0x0F))).toEqual(Array.from(EEPROM_V4.subarray(0, 0x0F)));
++  });
++
++  it('should only describe settings that are part of the layout', () => {
++    ['3', '4'].forEach((revision) => {
++      const common = source.getCommonSettings(revision).base;
++      const individual = source.getIndividualSettings(revision).base;
++      const defaults = source.getDefaultSettings(revision);
++
++      const names = [...common, ...individual].map((setting) => setting.name);
++      names.forEach((name) => {
++        expect(`${name}: ${typeof EEPROM.LAYOUT_EXTENDED[name]}`).toEqual(`${name}: object`);
++      });
++
++      // Every setting shows up once and has a default that fits into a byte
++      const commonNames = common.map((setting) => setting.name);
++      expect(new Set(commonNames).size).toEqual(commonNames.length);
++      commonNames.forEach((name) => {
++        const value = defaults[name];
++        const valid = Number.isInteger(value) && value >= 0 && value <= 255;
++        expect(`${name}: ${valid}`).toEqual(`${name}: true`);
++      });
++    });
++
++    const names3 = source.getCommonSettings('3').base.map((setting) => setting.name);
++    const names4 = source.getCommonSettings('4').base.map((setting) => setting.name);
++    expect(names3).not.toContain('BRAKE_ON_ZERO_THROTTLE');
++    expect(names3).not.toContain('DEMAG_COMPENSATION');
++    expect(names4).toContain('BRAKE_ON_ZERO_THROTTLE');
++    expect(names4).toContain('DEMAG_COMPENSATION');
++  });
++
++  it('should match the defaults of the AM32 configurator', () => {
++    const image = Convert.arrayToSettingsObject(EEPROM_V4, EEPROM.LAYOUT_EXTENDED);
++    const defaults = source.getDefaultSettings('4');
++
++    // The melody is the one of this configurator, byte 14 a left over
++    const compared = Object.entries(defaults)
++      .filter(([name]) => !['STARTUP_MELODY', 'DEMAG_COMPENSATION'].includes(name));
++
++    expect(compared.length).toEqual(40);
++    compared.forEach(([name, value]) => {
++      expect(`${name}: ${value}`).toEqual(`${name}: ${image[name]}`);
++    });
++  });
++
++  it('should convert every value to its display value and back', () => {
++    const numbers = source.getCommonSettings('4').base.filter((setting) => setting.type === 'number');
++
++    numbers.forEach((setting) => {
++      const factor = setting.displayFactor || 1;
++      const offset = setting.displayOffset || 0;
++      const decimals = setting.decimals || 0;
++      const precision = Math.pow(10, decimals);
++
++      // Same conversion as in the slider
++      const toStored = (value) => {
++        const stored = (value - offset) / factor;
++
++        return decimals > 0 ? Math.round(stored) : Math.floor(stored);
++      };
++
++      const first = Math.round((setting.min - offset) / factor);
++      const last = Math.round((setting.max - offset) / factor);
++      expect(first).toBeGreaterThanOrEqual(0);
++      expect(last).toBeLessThanOrEqual(255);
++
++      const shown = new Set();
++      for(let stored = first; stored <= last; stored += 1) {
++        // The exact value while dragging ...
++        const exact = stored * factor + offset;
++        expect(`${setting.name} ${stored}: ${toStored(exact)}`).toEqual(`${setting.name} ${stored}: ${stored}`);
++
++        // ... and the one that is shown, rounded to the decimals of the setting
++        const display = Math.round(exact * precision) / precision;
++        expect(`${setting.name} ${stored}: ${toStored(display)}`).toEqual(`${setting.name} ${stored}: ${stored}`);
++        shown.add(display);
++      }
++
++      // No two values may look the same
++      expect(`${setting.name}: ${shown.size}`).toEqual(`${setting.name}: ${last - first + 1}`);
++    });
++  });
++
++  it('should show what the firmware makes of the timing advance', () => {
++    const timing = getSetting('4', 'TIMING_ADVANCE');
++
++    // Old format: 0 - 3 in 7.5 degree steps
++    expect(timing.sanitize({ TIMING_ADVANCE: 0 })).toEqual({ TIMING_ADVANCE: 10 });
++    expect(timing.sanitize({ TIMING_ADVANCE: 2 })).toEqual({ TIMING_ADVANCE: 26 });
++    expect(timing.sanitize({ TIMING_ADVANCE: 3 })).toEqual({ TIMING_ADVANCE: 34 });
++
++    // New format is taken as it is
++    expect(timing.sanitize({ TIMING_ADVANCE: 10 })).toEqual({ TIMING_ADVANCE: 10 });
++    expect(timing.sanitize({ TIMING_ADVANCE: 42 })).toEqual({ TIMING_ADVANCE: 42 });
++
++    // Anything else results in 15 degrees
++    expect(timing.sanitize({ TIMING_ADVANCE: 7 })).toEqual({ TIMING_ADVANCE: 26 });
++    expect(timing.sanitize({ TIMING_ADVANCE: 255 })).toEqual({ TIMING_ADVANCE: 26 });
++    expect(26 * timing.displayFactor + timing.displayOffset).toEqual(15);
++    expect(10 * timing.displayFactor + timing.displayOffset).toEqual(timing.min);
++    expect(42 * timing.displayFactor + timing.displayOffset).toEqual(timing.max);
++
++    // Not used while the ESC picks the timing itself
++    expect(timing.visibleIf({ AUTO_ADVANCE: 0 })).toBeTruthy();
++    expect(timing.visibleIf({ AUTO_ADVANCE: 1 })).toBeFalsy();
++  });
++
++  it('should only show settings that are in effect', () => {
++    // Selections hand back strings
++    expect(getSetting('4', 'PWM_FREQUENCY').visibleIf({ VARIABLE_PWM_FREQUENCY: '1' })).toBeTruthy();
++    expect(getSetting('4', 'PWM_FREQUENCY').visibleIf({ VARIABLE_PWM_FREQUENCY: '2' })).toBeFalsy();
++    expect(getSetting('4', 'BRAKE_STRENGTH').visibleIf({ BRAKE_ON_STOP: 1 })).toBeTruthy();
++    expect(getSetting('4', 'BRAKE_STRENGTH').visibleIf({ BRAKE_ON_STOP: '2' })).toBeFalsy();
++    expect(getSetting('4', 'ACTIVE_BRAKE_POWER').visibleIf({ BRAKE_ON_STOP: '2' })).toBeTruthy();
++    expect(getSetting('4', 'ACTIVE_BRAKE_POWER').visibleIf({ BRAKE_ON_STOP: 1 })).toBeFalsy();
++    expect(getSetting('4', 'LOW_VOLTAGE_THRESHOLD').visibleIf({ LOW_VOLTAGE_CUTOFF: 1 })).toBeTruthy();
++    expect(getSetting('4', 'LOW_VOLTAGE_THRESHOLD').visibleIf({ LOW_VOLTAGE_CUTOFF: '2' })).toBeFalsy();
++    expect(getSetting('4', 'ABSOLUTE_VOLTAGE_CUTOFF').visibleIf({ LOW_VOLTAGE_CUTOFF: 1 })).toBeFalsy();
++    expect(getSetting('4', 'ABSOLUTE_VOLTAGE_CUTOFF').visibleIf({ LOW_VOLTAGE_CUTOFF: '2' })).toBeTruthy();
++
++    // Demag compensation came with firmware 2.22
++    const demag = getSetting('4', 'DEMAG_COMPENSATION');
++    expect(demag.visibleIf({
++      MAIN_REVISION: 2,
++      SUB_REVISION: 21,
++    })).toBeFalsy();
++    expect(demag.visibleIf({
++      MAIN_REVISION: 2,
++      SUB_REVISION: 22,
++    })).toBeTruthy();
++    expect(demag.visibleIf({
++      MAIN_REVISION: 3,
++      SUB_REVISION: 0,
++    })).toBeTruthy();
++  });
++
++  it('should show what the firmware makes of invalid values', () => {
++    expect(getSetting('4', 'DEMAG_COMPENSATION').sanitize({ DEMAG_COMPENSATION: 53 }))
++      .toEqual({ DEMAG_COMPENSATION: 0 });
++    expect(getSetting('4', 'BRAKE_ON_ZERO_THROTTLE').sanitize({ BRAKE_ON_ZERO_THROTTLE: 0x30 }))
++      .toEqual({ BRAKE_ON_ZERO_THROTTLE: 0 });
++    expect(getSetting('4', 'BRAKE_ON_ZERO_THROTTLE').sanitize({ BRAKE_ON_ZERO_THROTTLE: 4 }))
++      .toEqual({ BRAKE_ON_ZERO_THROTTLE: 4 });
++    expect(getSetting('4', 'AUTO_ADVANCE').sanitize({ AUTO_ADVANCE: 255 })).toEqual({ AUTO_ADVANCE: 1 });
++    expect(getSetting('4', 'AUTO_ADVANCE').sanitize({ AUTO_ADVANCE: 0 })).toEqual({ AUTO_ADVANCE: 0 });
++    expect(getSetting('4', 'MINIMUM_DUTY_CYCLE').sanitize({ MINIMUM_DUTY_CYCLE: 79 }))
++      .toEqual({ MINIMUM_DUTY_CYCLE: 0 });
++    expect(getSetting('4', 'MINIMUM_DUTY_CYCLE').sanitize({ MINIMUM_DUTY_CYCLE: 50 }))
++      .toEqual({ MINIMUM_DUTY_CYCLE: 50 });
++  });
++
++  it('should leave the layouts of older firmware untouched', () => {
++    expect(EEPROM.LAYOUT.NAME).toEqual({
++      offset: 0x05,
++      size: 12,
++    });
++    expect(EEPROM.LAYOUT_SIZE).toEqual(0xB0);
++    expect(Object.keys(SETTINGS_DESCRIPTIONS.COMMON)).toEqual(['0', '1', '2', '3', '4']);
++    expect(getSetting('2', 'TIMING_ADVANCE').max).toEqual(22.5);
++    expect(getSetting('2', 'VARIABLE_PWM_FREQUENCY').type).toEqual('bool');
++  });
++});
+diff --git a/src/sources/AM32/__tests__/index.test.js b/src/sources/AM32/__tests__/index.test.js
+index e5a6839..b364f1c 100644
+--- a/src/sources/AM32/__tests__/index.test.js
++++ b/src/sources/AM32/__tests__/index.test.js
+@@ -29,8 +29,8 @@ describe('AM32', () => {
+       }
+     }
+ 
+-    expect(truthy).toEqual(6);
+-    expect(falsy).toEqual(6);
++    expect(truthy).toEqual(15);
++    expect(falsy).toEqual(38);
+   });
+ 
+   it('should return display name', () => {
+diff --git a/src/sources/AM32/eeprom.js b/src/sources/AM32/eeprom.js
+index 3c5b353..a21a25b 100644
+--- a/src/sources/AM32/eeprom.js
++++ b/src/sources/AM32/eeprom.js
+@@ -161,9 +161,80 @@ const LAYOUT = {
+   },
+ };
+ 
++/**
++ * Starting with EEPROM version 3 (firmware 2.19) AM32 no longer stores the
++ * firmware name in bytes 0x05 - 0x10, they hold settings instead. The EEPROM
++ * also grew by a 16 byte block of CAN settings.
++ *
++ * Mirrors EEprom_t in Inc/eeprom.h of the AM32 firmware. Bytes that have no
++ * entry here (reserved bytes, the CAN block) are never touched: they are
++ * written back exactly as they have been read.
++ */
++const EXTENDED_LAYOUT_REVISION = 3;
++const LAYOUT_SIZE_EXTENDED = 0xC0;
++
++const {
++  // eslint-disable-next-line no-unused-vars
++  NAME,
++  ...LAYOUT_WITHOUT_NAME
++} = LAYOUT;
++
++const LAYOUT_EXTENDED = {
++  ...LAYOUT_WITHOUT_NAME,
++  MAX_RAMP: {
++    offset: 0x05,
++    size: 1,
++  },
++  MINIMUM_DUTY_CYCLE: {
++    offset: 0x06,
++    size: 1,
++  },
++  DISABLE_STICK_CALIBRATION: {
++    offset: 0x07,
++    size: 1,
++  },
++  ABSOLUTE_VOLTAGE_CUTOFF: {
++    offset: 0x08,
++    size: 1,
++  },
++  CURRENT_P: {
++    offset: 0x09,
++    size: 1,
++  },
++  CURRENT_I: {
++    offset: 0x0A,
++    size: 1,
++  },
++  CURRENT_D: {
++    offset: 0x0B,
++    size: 1,
++  },
++  ACTIVE_BRAKE_POWER: {
++    offset: 0x0C,
++    size: 1,
++  },
++  // Part of the firmware name before EEPROM version 4
++  BRAKE_ON_ZERO_THROTTLE: {
++    offset: 0x0D,
++    size: 1,
++  },
++  // Reserved before firmware 2.22
++  DEMAG_COMPENSATION: {
++    offset: 0x0E,
++    size: 1,
++  },
++  AUTO_ADVANCE: {
++    offset: 0x2F,
++    size: 1,
++  },
++};
++
+ const EEPROM = {
+   LAYOUT,
+   LAYOUT_SIZE,
++  LAYOUT_EXTENDED,
++  LAYOUT_SIZE_EXTENDED,
++  EXTENDED_LAYOUT_REVISION,
+   NAMES: [''],
+   RESET_DELAY: RESET_DELAY_MS,
+   BOOT_LOADER_OFFSET: BOOT_LOADER_VERSION_OFFSET,
+diff --git a/src/sources/AM32/index.js b/src/sources/AM32/index.js
+index 4479f0d..0466e80 100644
+--- a/src/sources/AM32/index.js
++++ b/src/sources/AM32/index.js
+@@ -99,6 +99,48 @@ class AM32Source extends GithubSource {
+     return Object.keys(escs.layouts);
+   }
+ 
++  /**
++   * EEPROM version 3 and up has settings where the firmware name used to be
++   * and is longer - see eeprom.js.
++   *
++   * @param {number|string} revision EEPROM version reported by the ESC
++   * @returns {boolean}
++   */
++  hasExtendedLayout(revision) {
++    const version = parseInt(revision, 10);
++
++    // An erased EEPROM reads 0xFF, treat it like the original layout
++    return version >= this.eeprom.EXTENDED_LAYOUT_REVISION && version !== 0xFF;
++  }
++
++  /**
++   * Get the settings layout matching an EEPROM version
++   *
++   * @param {number|string} revision
++   * @returns {object}
++   */
++  getLayout(revision) {
++    if(this.hasExtendedLayout(revision)) {
++      return this.eeprom.LAYOUT_EXTENDED;
++    }
++
++    return this.eeprom.LAYOUT;
++  }
++
++  /**
++   * Get the size of the layout matching an EEPROM version
++   *
++   * @param {number|string} revision
++   * @returns {number}
++   */
++  getLayoutSize(revision) {
++    if(this.hasExtendedLayout(revision)) {
++      return this.eeprom.LAYOUT_SIZE_EXTENDED;
++    }
++
++    return this.eeprom.LAYOUT_SIZE;
++  }
++
+   /**
+    * Reurns group order for common settings
+    *
+@@ -109,8 +151,12 @@ class AM32Source extends GithubSource {
+       'general',
+       'am32motor',
+       'am32pwm',
++      'am32extended',
+       'am32brake',
+       'am32sine',
++      'am32safety',
++      'am32current',
++      'am32servo',
+     ];
+   }
+ }
+diff --git a/src/sources/AM32/settings.js b/src/sources/AM32/settings.js
+index 36214bc..fa6e506 100644
+--- a/src/sources/AM32/settings.js
++++ b/src/sources/AM32/settings.js
+@@ -127,7 +127,8 @@ const SETTINGS_LAYOUT_1 = [
+     type: 'number',
+     label: 'escServoNeutral',
+     min: 1374,
+-    max: 1630,
++    // Stored in one byte: 1374 + 255
++    max: 1629,
+     step: 1,
+     displayFactor: 1,
+     displayOffset: 1374,
+@@ -264,10 +265,357 @@ const SETTINGS_LAYOUT_2 = [
+   },
+ ];
+ 
++/**
++ * EEPROM version 3 (firmware 2.19 and 2.20)
++ *
++ * Bytes that used to hold the firmware name are settings now, and a couple of
++ * on/off settings turned into selections. Ranges and factors follow the AM32
++ * firmware (loadEEpromSettings() in Src/main.c) and the AM32 configurator.
++ *
++ * Selections hand their value back as a string, hence Number() in the
++ * conditions.
++ */
++const isFirmwareAtLeast = (settings, main, sub) => (
++  settings.MAIN_REVISION > main ||
++  (settings.MAIN_REVISION === main && settings.SUB_REVISION >= sub)
++);
++
++// The firmware treats any value other than 0 as "on"
++const sanitizeFlag = (name) => (settings) => (
++  { [name]: Number(settings[name]) === 0 ? 0 : 1 }
++);
++
++// Show what the firmware falls back to for values it does not accept
++const sanitizeMaximum = (name, max, fallback) => (settings) => (
++  { [name]: Number(settings[name]) > max ? fallback : settings[name] }
++);
++
++/**
++ * Timing advance is stored as 10 - 42 (0 - 30 degrees in 0.9375 degree
++ * steps). Tools made for older firmware wrote 0 - 3 (7.5 degree steps), the
++ * firmware still accepts that and converts it. Everything else results in
++ * 15 degrees.
++ */
++const sanitizeTimingAdvance = (settings) => {
++  const value = Number(settings.TIMING_ADVANCE);
++  if(value < 4) {
++    return { TIMING_ADVANCE: value * 8 + 10 };
++  }
++
++  if(value < 10 || value > 42) {
++    return { TIMING_ADVANCE: 26 };
++  }
++
++  return { TIMING_ADVANCE: value };
++};
++
++const EXTENDED_REPLACEMENTS = {
++  TIMING_ADVANCE: {
++    name: 'TIMING_ADVANCE',
++    type: 'number',
++    min: 0,
++    max: 30,
++    step: 0.9375,
++    decimals: 1,
++    label: 'escTimingAdvance',
++    displayFactor: 0.9375,
++    displayOffset: -9.375,
++    order: 100,
++    visibleIf: (settings) => Number(settings.AUTO_ADVANCE) === 0,
++    sanitize: sanitizeTimingAdvance,
++  },
++  VARIABLE_PWM_FREQUENCY: {
++    name: 'VARIABLE_PWM_FREQUENCY',
++    type: 'enum',
++    label: 'am32PwmType',
++    options: [
++      {
++        value: 0,
++        label: 'Fixed',
++      },
++      {
++        value: 1,
++        label: 'Variable',
++      },
++      {
++        value: 2,
++        label: 'By RPM',
++      },
++    ],
++    group: 'am32pwm',
++  },
++  PWM_FREQUENCY: {
++    name: 'PWM_FREQUENCY',
++    type: 'number',
++    min: 8,
++    max: 144,
++    step: 1,
++    label: 'escPwmFrequency',
++    // "By RPM" picks the frequency on its own
++    visibleIf: (settings) => Number(settings.VARIABLE_PWM_FREQUENCY) < 2,
++    group: 'am32pwm',
++  },
++  BRAKE_ON_STOP: {
++    name: 'BRAKE_ON_STOP',
++    type: 'enum',
++    label: 'escBrakeOnStop',
++    options: [
++      {
++        value: 0,
++        label: 'Off',
++      },
++      {
++        value: 1,
++        label: 'Brake on stop',
++      },
++      {
++        value: 2,
++        label: 'Active brake',
++      },
++    ],
++    group: 'am32brake',
++    order: 0,
++  },
++  BRAKE_STRENGTH: {
++    name: 'BRAKE_STRENGTH',
++    type: 'number',
++    label: 'escBrakeStrength',
++    min: 1,
++    max: 10,
++    step: 1,
++    visibleIf: (settings) => Number(settings.BRAKE_ON_STOP) === 1,
++    group: 'am32brake',
++  },
++  LOW_VOLTAGE_CUTOFF: {
++    name: 'LOW_VOLTAGE_CUTOFF',
++    type: 'enum',
++    label: 'escLowVoltageCutoff',
++    options: [
++      {
++        value: 0,
++        label: 'Off',
++      },
++      {
++        value: 1,
++        label: 'Cell based',
++      },
++      {
++        value: 2,
++        label: 'Absolute',
++      },
++    ],
++    group: 'am32safety',
++  },
++  LOW_VOLTAGE_THRESHOLD: {
++    name: 'LOW_VOLTAGE_THRESHOLD',
++    type: 'number',
++    label: 'escLowVoltageThreshold',
++    min: 250,
++    max: 350,
++    step: 1,
++    displayFactor: 1,
++    displayOffset: 250,
++    visibleIf: (settings) => Number(settings.LOW_VOLTAGE_CUTOFF) === 1,
++    group: 'am32safety',
++  },
++  ESC_PROTOCOL: {
++    name: 'ESC_PROTOCOL',
++    type: 'enum',
++    label: 'escSelectProtocol',
++    options: [
++      {
++        value: 0,
++        label: 'Auto',
++      },
++      {
++        value: 1,
++        label: 'DShot',
++      },
++      {
++        value: 2,
++        label: 'Servo',
++      },
++      {
++        value: 3,
++        label: 'Serial',
++      },
++      {
++        value: 4,
++        label: 'EDT ARM',
++      },
++      {
++        value: 5,
++        label: 'DroneCAN (CAN ESCs only)',
++      },
++    ],
++    order: 0,
++  },
++};
++
++const SETTINGS_LAYOUT_3 = [
++  ...SETTINGS_LAYOUT_2.map((setting) => EXTENDED_REPLACEMENTS[setting.name] || setting),
++  {
++    name: 'AUTO_ADVANCE',
++    type: 'bool',
++    label: 'am32AutoAdvance',
++    order: 99,
++    sanitize: sanitizeFlag('AUTO_ADVANCE'),
++  },
++  {
++    name: 'DISABLE_STICK_CALIBRATION',
++    type: 'bool',
++    label: 'am32DisableStickCalibration',
++    sanitize: sanitizeFlag('DISABLE_STICK_CALIBRATION'),
++  },
++  {
++    name: 'MAX_RAMP',
++    type: 'number',
++    label: 'am32MaxRamp',
++    min: 0.1,
++    max: 25,
++    step: 0.1,
++    decimals: 1,
++    displayFactor: 0.1,
++    group: 'am32extended',
++  },
++  {
++    name: 'MINIMUM_DUTY_CYCLE',
++    type: 'number',
++    label: 'am32MinimumDutyCycle',
++    min: 0,
++    max: 25,
++    step: 0.5,
++    decimals: 1,
++    displayFactor: 0.5,
++    group: 'am32extended',
++    // Values above 25% are ignored by the firmware
++    sanitize: sanitizeMaximum('MINIMUM_DUTY_CYCLE', 50, 0),
++  },
++  {
++    name: 'ACTIVE_BRAKE_POWER',
++    type: 'number',
++    label: 'am32ActiveBrakePower',
++    min: 0,
++    max: 5,
++    step: 0.5,
++    decimals: 1,
++    displayFactor: 0.5,
++    visibleIf: (settings) => Number(settings.BRAKE_ON_STOP) === 2,
++    group: 'am32brake',
++  },
++  {
++    name: 'ABSOLUTE_VOLTAGE_CUTOFF',
++    type: 'number',
++    label: 'am32AbsoluteVoltageCutoff',
++    min: 0.5,
++    max: 50,
++    step: 0.5,
++    decimals: 1,
++    displayFactor: 0.5,
++    visibleIf: (settings) => Number(settings.LOW_VOLTAGE_CUTOFF) === 2,
++    group: 'am32safety',
++  },
++  {
++    name: 'CURRENT_P',
++    type: 'number',
++    label: 'am32CurrentP',
++    min: 0,
++    max: 510,
++    step: 2,
++    displayFactor: 2,
++    group: 'am32current',
++  },
++  {
++    name: 'CURRENT_I',
++    type: 'number',
++    label: 'am32CurrentI',
++    min: 0,
++    max: 255,
++    step: 1,
++    group: 'am32current',
++  },
++  {
++    name: 'CURRENT_D',
++    type: 'number',
++    label: 'am32CurrentD',
++    min: 0,
++    max: 510,
++    step: 2,
++    displayFactor: 2,
++    group: 'am32current',
++  },
++];
++
++/**
++ * EEPROM version 4 (firmware 2.21 and up)
++ */
++const SETTINGS_LAYOUT_4 = [
++  ...SETTINGS_LAYOUT_3,
++  {
++    name: 'BRAKE_ON_ZERO_THROTTLE',
++    type: 'enum',
++    label: 'am32BrakeOnZeroThrottle',
++    options: [
++      {
++        value: 0,
++        label: 'Default (follows complementary PWM)',
++      },
++      {
++        value: 1,
++        label: 'Coast',
++      },
++      {
++        value: 2,
++        label: 'Brake',
++      },
++      ...[1, 2, 3, 4, 5, 6, 7].map((seconds) => ({
++        value: seconds + 2,
++        label: `Brake on stop after ${seconds} s`,
++      })),
++    ],
++    group: 'am32brake',
++    order: 1,
++    sanitize: sanitizeMaximum('BRAKE_ON_ZERO_THROTTLE', 9, 0),
++  },
++  {
++    // Came with firmware 2.22, without a new EEPROM version
++    name: 'DEMAG_COMPENSATION',
++    type: 'enum',
++    label: 'am32DemagCompensation',
++    options: [
++      {
++        value: 0,
++        label: 'Off',
++      },
++      {
++        value: 1,
++        label: 'Coast only',
++      },
++      {
++        value: 2,
++        label: '1/32 power cut',
++      },
++      {
++        value: 3,
++        label: '1/16 power cut',
++      },
++      {
++        value: 4,
++        label: '1/8 power cut',
++      },
++    ],
++    group: 'am32motor',
++    visibleIf: (settings) => isFirmwareAtLeast(settings, 2, 22),
++    sanitize: sanitizeMaximum('DEMAG_COMPENSATION', 4, 0),
++  },
++];
++
+ const COMMON = {
+   '0': { base: SETTINGS_LAYOUT_0 },
+   '1': { base: SETTINGS_LAYOUT_1 },
+   '2': { base: SETTINGS_LAYOUT_2 },
++  '3': { base: SETTINGS_LAYOUT_3 },
++  '4': { base: SETTINGS_LAYOUT_4 },
+ };
+ 
+ const INDIVIDUAL_SETTINGS_0 = [
+@@ -309,6 +657,8 @@ const INDIVIDUAL = {
+   '0': { base: INDIVIDUAL_SETTINGS_0 },
+   '1': { base: INDIVIDUAL_SETTINGS_1 },
+   '2': { base: INDIVIDUAL_SETTINGS_2 },
++  '3': { base: INDIVIDUAL_SETTINGS_2 },
++  '4': { base: INDIVIDUAL_SETTINGS_2 },
+ };
+ 
+ const DEFAULT_SETTINGS_0 = {
+@@ -353,10 +703,40 @@ const DEFAULT_SETTINGS_2 = {
+   ESC_PROTOCOL: 0,
+ };
+ 
++/**
++ * Defaults for EEPROM version 3 and 4, taken from the default EEPROM image
++ * of the AM32 configurator (eeprom-defaults/DEFAULT/v4.bin).
++ */
++const DEFAULT_SETTINGS_3 = {
++  ...DEFAULT_SETTINGS_2,
++  MAX_RAMP: 160,
++  MINIMUM_DUTY_CYCLE: 4,
++  DISABLE_STICK_CALIBRATION: 0,
++  ABSOLUTE_VOLTAGE_CUTOFF: 10,
++  CURRENT_P: 100,
++  CURRENT_I: 0,
++  CURRENT_D: 50,
++  ACTIVE_BRAKE_POWER: 2,
++  TIMING_ADVANCE: 26,
++  BRAKE_ON_STOP: 0,
++  SINE_MODE_RANGE: 15,
++  CURRENT_LIMIT: 102,
++  ESC_PROTOCOL: 1,
++  AUTO_ADVANCE: 0,
++};
++
++const DEFAULT_SETTINGS_4 = {
++  ...DEFAULT_SETTINGS_3,
++  BRAKE_ON_ZERO_THROTTLE: 0,
++  DEMAG_COMPENSATION: 0,
++};
++
+ const DEFAULTS = {
+   '0': DEFAULT_SETTINGS_0,
+   '1': DEFAULT_SETTINGS_1,
+   '2': DEFAULT_SETTINGS_2,
++  '3': DEFAULT_SETTINGS_3,
++  '4': DEFAULT_SETTINGS_4,
+ };
+ 
+ const settings = {
+diff --git a/src/translations/en/common.json b/src/translations/en/common.json
+index 7051006..ce23938 100644
+--- a/src/translations/en/common.json
++++ b/src/translations/en/common.json
+@@ -113,6 +113,18 @@
+   "am32TemperatureLimit": "Temperature Limit",
+   "am32CurrentLimit": "Current Limit [A]",
+   "am32SineModePower": "Sine Mode Power",
++  "am32PwmType": "PWM Type",
++  "am32AutoAdvance": "Automatic Timing Advance",
++  "am32DisableStickCalibration": "Disable Stick Calibration",
++  "am32MaxRamp": "Ramp Rate [% duty cycle per ms]",
++  "am32MinimumDutyCycle": "Minimum Duty Cycle [%]",
++  "am32ActiveBrakePower": "Active Brake Power [% duty cycle]",
++  "am32AbsoluteVoltageCutoff": "Absolute Voltage Cut-Off [V]",
++  "am32CurrentP": "Current Limit P",
++  "am32CurrentI": "Current Limit I",
++  "am32CurrentD": "Current Limit D",
++  "am32BrakeOnZeroThrottle": "Brake on Zero Throttle",
++  "am32DemagCompensation": "Missed ZC / Demag Compensation",
+   "bluejayTextLine1": "Bluejay is BLHeli_S based firmware capable of bi-directional DShot - so a great choice if you want to run RPM filtering on your rig. This project also aims to clean up and simplify the original BLHeli_S source code.",
+   "bluejayTextLine2": "A startup sound editor is also part of the deal.",
+   "bluejaySupportedHardwareLine1": "Please take the time to help us document hardware on which you have successfully flashed and tested Bluejay by [adding it to the Wiki](https://github.com/bird-sanctuary/bluejay/wiki/Tested-Hardware).",
+diff --git a/src/translations/en/groups.json b/src/translations/en/groups.json
+index f55a973..b3b8f5d 100644
+--- a/src/translations/en/groups.json
++++ b/src/translations/en/groups.json
+@@ -6,6 +6,8 @@
+   "am32brake": "Brake Settings",
+   "am32pwm": "PWM Settings",
+   "am32safety": "Safety Settings",
++  "am32extended": "Extended Settings",
++  "am32current": "Current Control",
+   "bluejaySafety": "Safety Settings",
+   "bluejayBrake": "Brake Settings",
+   "bluejayBeacon": "Beacon Settings",
+diff --git a/src/translations/en/hints.json b/src/translations/en/hints.json
+index af25d60..70432f7 100644
+--- a/src/translations/en/hints.json
++++ b/src/translations/en/hints.json
+@@ -45,5 +45,16 @@
+   "TEMPERATURE_LIMIT": "Will significantly decrease maximum power when threshold is reached.",
+   "CURRENT_LIMIT": "Will hold the maximum possible RPM at the allowed current.",
+   "SINE_MODE_POWER": "Fixed duty cycle level to be used when using sine mode. CAUTION: Values above 6 might damage motor and/or ESC.",
+-  "BIDIRECTIONAL_MODE": "Neutral position is in the center of throttle. Spins in one direction when above center and in the other direction when below center position."
++  "BIDIRECTIONAL_MODE": "Neutral position is in the center of throttle. Spins in one direction when above center and in the other direction when below center position.",
++  "AUTO_ADVANCE": "Lets the ESC adjust the timing advance on its own, depending on the throttle. The timing advance setting is not used while this is enabled.",
++  "DISABLE_STICK_CALIBRATION": "Skips the throttle range calibration of servo (PWM) input and uses the configured servo thresholds as they are.",
++  "MAX_RAMP": "Limits how fast the duty cycle may rise. Lower values make the motor accelerate softer.",
++  "MINIMUM_DUTY_CYCLE": "Duty cycle that is applied as soon as the motor is running, increases the lowest possible motor speed.",
++  "ACTIVE_BRAKE_POWER": "Duty cycle used to hold the motor in place when brake on stop is set to active brake. The ESC has to be armed for it.",
++  "ABSOLUTE_VOLTAGE_CUTOFF": "The motor is stopped when the battery voltage drops below this level, no matter how many cells the battery has.",
++  "CURRENT_P": "Proportional gain of the current limiter. Only used while the current limit is enabled.",
++  "CURRENT_I": "Integral gain of the current limiter. Only used while the current limit is enabled.",
++  "CURRENT_D": "Derivative gain of the current limiter. Only used while the current limit is enabled.",
++  "BRAKE_ON_ZERO_THROTTLE": "What the ESC does when the throttle drops to zero while the motor is still spinning. The delayed options behave like the default first and then switch to the brake on stop setting.",
++  "DEMAG_COMPENSATION": "What the ESC does after a missed zero crossing or a long demagnetization. Coast only skips the power cut, the other levels reduce power after demag recovery."
+ }
+diff --git a/src/utils/FourWay.js b/src/utils/FourWay.js
+index d0e8b0d..fe2db0c 100644
+--- a/src/utils/FourWay.js
++++ b/src/utils/FourWay.js
+@@ -431,10 +431,30 @@ class FourWay {
+         info.layout = source.getLayout();
+         info.layoutSize = source.getLayoutSize();
+ 
+-        const  settingsArray = (await this.read(eepromOffset, info.layoutSize)).params;
++        let settingsArray = (await this.read(eepromOffset, info.layoutSize)).params;
++
++        /**
++         * Newer firmware has a longer EEPROM with settings where the firmware
++         * name used to be. Read it again in its full length.
++         */
++        const eepromVersion = settingsArray[am32Eeprom.LAYOUT.LAYOUT_REVISION.offset];
++        const extendedLayout = source.hasExtendedLayout(eepromVersion);
++        if(extendedLayout) {
++          info.layout = source.getLayout(eepromVersion);
++          info.layoutSize = source.getLayoutSize(eepromVersion);
++
++          settingsArray = (await this.read(eepromOffset, info.layoutSize)).params;
++        }
++
+         info.settingsArray = Array.from(settingsArray);
+         info.settings = Convert.arrayToSettingsObject(settingsArray, info.layout);
+ 
++        if(extendedLayout) {
++          // No name in the EEPROM, the name of the firmware file comes closest
++          const { fileName } = info.meta.am32;
++          info.settings.NAME = fileName ? fileName.slice(0, fileName.lastIndexOf('_')) : source.getName();
++        }
++
+         /**
+          * If not AM32, then very likely BLHeli_32, even if not - we can't
+          * handle it.
+@@ -694,7 +714,17 @@ class FourWay {
+     const flash = await this.sendMessagePromised(COMMANDS.cmd_DeviceInitFlash, [target]);
+ 
+     if (flash) {
+-      const newSettingsArray = Convert.objectToSettingsArray(settings, esc.layout, esc.layoutSize);
++      /**
++       * The AM32 EEPROM has bytes we know nothing about (reserved bytes, CAN
++       * settings, settings of newer firmware): write those back the way they
++       * have been read instead of erasing them.
++       */
++      const newSettingsArray = Convert.objectToSettingsArray(
++        settings,
++        esc.layout,
++        esc.layoutSize,
++        esc.isArm ? esc.settingsArray : null
++      );
+       if(newSettingsArray.length !== esc.settingsArray.length) {
+         throw new BufferLengthMismatchError(newSettingsArray.length, esc.settingsArray.length);
+       }
+@@ -865,7 +895,8 @@ class FourWay {
+           individualSettingsDescriptions = bluejaySettingsDescriptions.INDIVIDUAL;
+         } break;
+ 
+-        case am32Eeprom.LAYOUT: {
++        case am32Eeprom.LAYOUT:
++        case am32Eeprom.LAYOUT_EXTENDED: {
+           console.debug('AM32 layout found');
+           settingsDescriptions = am32SettingsDescriptions.COMMON;
+           individualSettingsDescriptions = am32SettingsDescriptions.INDIVIDUAL;
+@@ -1065,13 +1096,31 @@ class FourWay {
+       this.bytesWritten = 0;
+ 
+       const message = await this.read(eepromOffset, am32Eeprom.LAYOUT_SIZE);
+-      const originalSettings = message.params;
++      let originalSettings = message.params;
++
++      /**
++       * EEPROM version 3 and up has no firmware name, the bytes that used to
++       * hold it are settings. Writing a status text there would destroy
++       * them, so keep the EEPROM exactly as it is and only toggle the boot
++       * byte - like the AM32 configurator does. The firmware updates the
++       * version bytes on its own when it starts for the first time.
++       */
++      const eepromVersion = originalSettings[am32Eeprom.LAYOUT.LAYOUT_REVISION.offset];
++      const extendedLayout = am32Source.hasExtendedLayout(eepromVersion);
+ 
+-      const eepromInfo = new Uint8Array(17).fill(0x00);
+-      eepromInfo.set([originalSettings[1], originalSettings[2]], 1);
+-      eepromInfo.set(Convert.asciiToBuffer('FLASH FAIL  '), 5);
++      if(extendedLayout) {
++        const layoutSize = am32Source.getLayoutSize(eepromVersion);
++        originalSettings = (await this.read(eepromOffset, layoutSize)).params;
+ 
+-      await this.write(eepromOffset, eepromInfo);
++        originalSettings[0] = 0x00;
++        await this.write(eepromOffset, originalSettings);
++      } else {
++        const eepromInfo = new Uint8Array(17).fill(0x00);
++        eepromInfo.set([originalSettings[1], originalSettings[2]], 1);
++        eepromInfo.set(Convert.asciiToBuffer('FLASH FAIL  '), 5);
++
++        await this.write(eepromOffset, eepromInfo);
++      }
+ 
+       await this.writePages(0x04, 0x40, pageSize, flash);
+       try {
+@@ -1081,8 +1130,10 @@ class FourWay {
+       }
+ 
+       originalSettings[0] = 0x01;
+-      originalSettings.fill(0x00, 3, 5);
+-      originalSettings.set(Convert.asciiToBuffer('NOT READY   '), 5);
++      if(!extendedLayout) {
++        originalSettings.fill(0x00, 3, 5);
++        originalSettings.set(Convert.asciiToBuffer('NOT READY   '), 5);
++      }
+ 
+       await this.write(eepromOffset, originalSettings);
+     };
+diff --git a/src/utils/helpers/Convert.js b/src/utils/helpers/Convert.js
+index c7107d2..7482cf8 100644
+--- a/src/utils/helpers/Convert.js
++++ b/src/utils/helpers/Convert.js
+@@ -39,13 +39,21 @@ class Convert {
+   /**
+    * Convert a setting object to a matching settings array
+    *
++   * Bytes that are not part of the layout are taken from base if it is given
++   * (the settings as they have been read from the ESC), otherwise they are
++   * left erased (0xFF).
++   *
+    * @param {object} settingsObject
+    * @param {object} layout
+    * @param {number} layoutSize
++   * @param {ArrayLike<number>} base
+    * @returns {Uint8Array}
+    */
+-  static objectToSettingsArray(settingsObject, layout, layoutSize) {
++  static objectToSettingsArray(settingsObject, layout, layoutSize, base = null) {
+     const array = new Uint8Array(layoutSize).fill(0xff);
++    if(base) {
++      array.set(Array.from(base).slice(0, layoutSize));
++    }
+ 
+     for (const [prop, setting] of Object.entries(layout)) {
+       const {
+@@ -53,6 +61,11 @@ class Convert {
+         offset,
+       } = setting;
+ 
++      // Nothing to write: better keep what is on the ESC than to zero it
++      if(base && settingsObject[prop] === undefined) {
++        continue;
++      }
++
+       if (size === 1) {
+         array[offset] = settingsObject[prop];
+       } else if (size === 2) {

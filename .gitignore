@@ -1,0 +1,18 @@
+# Portable build tools (Node, JDK, Android SDK, caches)
+.toolchain/
+
+# Upstream web app - cloned from https://github.com/stylesuxx/esc-configurator,
+# local changes to it are kept in patches/
+web/
+
+# Downloaded by tools/fetch_firmware.py
+firmware-pack/
+
+# Android build output
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.kotlin/
+dist/
+*.apk

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Virtual COM ports (CDC): STM32, AT32, GD32, APM32... flight controllers -->
+    <usb-device class="2" />
+    <usb-device class="10" />
+
+    <!-- USB-UART bridges: CP210x, FTDI, CH34x, PL2303 -->
+    <usb-device vendor-id="4292" />
+    <usb-device vendor-id="1027" />
+    <usb-device vendor-id="6790" />
+    <usb-device vendor-id="1659" />
+</resources>

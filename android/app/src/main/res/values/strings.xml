@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">ESC Configurator</string>
+    <string name="no_usb_device">No USB serial device found. Connect the flight controller with an OTG cable.</string>
+    <string name="select_usb_device">Select USB device</string>
+    <string name="file_saved">File saved</string>
+    <string name="file_save_failed">Could not save the file</string>
+    <string name="no_browser">No app found to open the link</string>
+</resources>

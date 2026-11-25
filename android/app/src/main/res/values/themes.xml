@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the dark header of the web app -->
+    <color name="chrome">#3D3F3E</color>
+    <color name="ic_launcher_background">#FFFFFF</color>
+
+    <style name="AppTheme" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/chrome</item>
+        <item name="android:colorAccent">#56AB1A</item>
+    </style>
+</resources>

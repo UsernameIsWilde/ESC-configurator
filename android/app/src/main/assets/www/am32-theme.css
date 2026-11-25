@@ -1,0 +1,492 @@
+/*
+ * AM32 theme
+ *
+ * Active while the ESCs that have been read run AM32: android-bridge.js puts
+ * the class "am32" on <html>. It makes the web app look like the AM32
+ * configurator (am32.ca): near black background, red accent, settings groups
+ * as thin outlined boxes with their title on the border, slate ESC cards with
+ * a green ring.
+ *
+ * Colors are the Tailwind / Nuxt UI ones the AM32 configurator is built from.
+ */
+html.am32 {
+  color-scheme: dark;
+  accent-color: #f87171;
+
+  --am32-bg: #030712;       /* gray-950 */
+  --am32-panel: #111827;    /* gray-900 */
+  --am32-bar: #1f2937;      /* gray-800 */
+  --am32-line: #374151;     /* gray-700 */
+  --am32-border: #4b5563;   /* gray-600 */
+  --am32-muted: #9ca3af;    /* gray-400 */
+  --am32-text: #f3f4f6;     /* gray-100 */
+  --am32-primary: #f87171;  /* red-400 */
+  --am32-card: #64748b;     /* slate-500 */
+  --am32-ok: #22c55e;       /* green-500 */
+
+  /* The web app's own palette */
+  --color-primary: var(--am32-primary);
+  --color-secondary: #ef4444;
+  --color-tertiary: var(--am32-border);
+}
+
+html.am32,
+html.am32 body,
+html.am32 #content {
+  background-color: var(--am32-bg);
+  color: var(--am32-text);
+}
+
+/* ---------------------------------------------------------------------------
+ * Header
+ * ------------------------------------------------------------------------ */
+
+html.am32 .main .main__header,
+html.am32 .main .main__settings {
+  background: var(--am32-bg);
+}
+
+html.am32 .main .main__bar {
+  background-image: none;
+}
+
+html.am32 .main .main__header {
+  border-bottom: 1px solid var(--am32-bar);
+}
+
+html.am32 .port-picker {
+  background: var(--am32-bg);
+}
+
+html.am32 .dropdown,
+html.am32 .dropdown.dark {
+  background: var(--am32-panel);
+  border: 1px solid var(--am32-line);
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+html.am32 .dropdown .dropdown__select,
+html.am32 .dropdown.dark .dropdown__select {
+  color: var(--am32-text);
+  text-shadow: none;
+}
+
+html.am32 .dropdown.dark .dropdown__select > option {
+  background: var(--am32-panel);
+  color: var(--am32-text);
+  text-shadow: none;
+}
+
+html.am32 .main .button.button--dark a,
+html.am32 .main .button.button--dark button {
+  background: var(--am32-bar);
+  border: 1px solid var(--am32-line);
+  border-radius: 6px;
+  color: var(--am32-text);
+  text-shadow: none;
+}
+
+html.am32 .port-picker .connect-state {
+  color: var(--am32-text);
+  text-shadow: none;
+}
+
+/* Connect is green, disconnect stays red - as in the AM32 configurator */
+html.am32 .port-picker #connect-button-wrapper button .icon.connect {
+  background-color: #16a34a;
+  border-color: var(--am32-ok);
+  box-shadow: none;
+}
+
+html.am32 .port-picker #connect-button-wrapper button.active .icon.connect {
+  background-color: #dc2626;
+  border-color: #ef4444;
+}
+
+/* ---------------------------------------------------------------------------
+ * Log
+ * ------------------------------------------------------------------------ */
+
+html.am32 #log {
+  background-color: var(--am32-panel);
+  color: var(--am32-text);
+}
+
+html.am32 #log.expanded {
+  box-shadow: none;
+}
+
+html.am32 #log .logswitch {
+  background: var(--am32-panel);
+}
+
+html.am32 #log .logswitch button {
+  color: var(--am32-muted) !important;
+}
+
+/* ---------------------------------------------------------------------------
+ * Notes
+ * ------------------------------------------------------------------------ */
+
+html.am32 #content .note {
+  background-color: rgb(250 204 21 / 8%);
+  border: 1px solid rgb(250 204 21 / 35%);
+  border-radius: 6px;
+  color: #fde68a;
+}
+
+html.am32 #content .note.warning,
+html.am32 #content .tab .alert,
+html.am32 #content .note.alert {
+  background-color: rgb(248 113 113 / 10%);
+  border: 1px solid rgb(248 113 113 / 45%);
+  color: #fecaca;
+}
+
+html.am32 #content .tab .alert a,
+html.am32 #content .tab .alert span,
+html.am32 #firmware-selector .alert a {
+  color: #fecaca;
+}
+
+/* ---------------------------------------------------------------------------
+ * Boxes
+ * ------------------------------------------------------------------------ */
+
+html.am32 #content .tab .gui-box,
+html.am32 #content .tab .gui-box.grey {
+  background-color: transparent;
+  border: 1px solid var(--am32-border);
+  border-radius: 6px;
+  color: var(--am32-text);
+  font-weight: 400;
+}
+
+html.am32 #content .tab .gui-box .gui-box-titlebar {
+  background-color: transparent;
+  border-bottom: 1px solid var(--am32-border);
+  border-radius: 0;
+}
+
+html.am32 #content .tab .spacer-box-title {
+  color: var(--am32-text);
+  font-size: 14px;
+  font-weight: 700;
+  padding-bottom: 4px;
+}
+
+html.am32 #content .tab .gui-box span {
+  color: var(--am32-text);
+}
+
+html.am32 #content .tab .gui-box a {
+  color: #93c5fd;
+}
+
+/* ---------------------------------------------------------------------------
+ * Common settings: no surrounding box, every group is an outlined box with
+ * its title sitting on the border
+ * ------------------------------------------------------------------------ */
+
+html.am32 #content .tab .flash__common > .gui-box {
+  border: 0;
+}
+
+html.am32 #content .tab .flash__common > .gui-box > .gui-box-titlebar {
+  display: none;
+}
+
+html.am32 #content .tab .flash__common > .gui-box > .spacer-box {
+  padding: 0;
+  width: 100%;
+}
+
+html.am32 .flash__common fieldset,
+html.am32 .flash__common fieldset:not(:first-child) {
+  border: 1px solid var(--am32-border);
+  border-radius: 4px;
+  margin: 0 0 16px;
+  min-width: 0;
+  padding: 6px 12px 10px;
+}
+
+html.am32 .flash__common fieldset legend,
+html.am32 .flash__common fieldset:not(:first-child) legend {
+  border: 0;
+  color: var(--am32-text);
+  font-size: 13px;
+  font-weight: 400;
+  margin-left: 6px;
+  padding: 0 8px;
+  width: auto;
+}
+
+/* The first group has no name in the web app */
+html.am32 .flash__common fieldset legend:empty::before {
+  content: 'Essentials';
+}
+
+/* ---------------------------------------------------------------------------
+ * Controls
+ * ------------------------------------------------------------------------ */
+
+html.am32 #content .tab .info-wrapper span.info-icon,
+html.am32 .info-wrapper span.info-icon {
+  background: transparent;
+  border: 1.5px solid #3b82f6;
+  color: #3b82f6;
+  font-size: 11px;
+  height: 14px;
+  line-height: 14px;
+  width: 14px;
+}
+
+html.am32 #content .tab .input-wrapper select,
+html.am32 #content .tab .input-wrapper input:not([type='checkbox']),
+html.am32 .overlay .input-wrapper select,
+html.am32 #firmware-selector select {
+  background-color: var(--am32-panel);
+  border: 1px solid var(--am32-line);
+  border-radius: 6px;
+  color: var(--am32-text);
+  height: 30px;
+  padding: 0 8px;
+}
+
+/* Dark box with a gray outline, filled with the accent color when checked */
+html.am32 input[type='checkbox'] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--am32-panel);
+  border: 1px solid var(--am32-border);
+  border-radius: 4px;
+  height: 18px;
+  margin: 0;
+  width: 18px;
+}
+
+html.am32 input[type='checkbox']:checked {
+  background: var(--am32-primary) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23111827'%3E%3Cpath d='M12.207 4.793a1 1 0 0 1 0 1.414l-5 5a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L6.5 9.086l4.293-4.293a1 1 0 0 1 1.414 0z'/%3E%3C/svg%3E") center / 100% no-repeat;
+  border-color: var(--am32-primary);
+}
+
+html.am32 input[type='checkbox']:disabled {
+  opacity: 0.5;
+}
+
+/* Sliders: gray rail, red fill, hollow handle */
+html.am32 .input-range__track {
+  background: var(--am32-line);
+  border-radius: 9999px;
+  height: 8px;
+}
+
+html.am32 .input-range__track--background {
+  margin-top: -4px;
+}
+
+html.am32 .input-range__track--active {
+  background: var(--am32-primary);
+}
+
+html.am32 .input-range__slider {
+  background: var(--am32-panel);
+  border: 2px solid var(--am32-primary);
+  height: 18px;
+  margin-left: -9px;
+  margin-top: -13px;
+  width: 18px;
+}
+
+html.am32 .input-range__slider:focus {
+  box-shadow: 0 0 0 5px rgb(248 113 113 / 25%);
+}
+
+html.am32 .input-range--disabled .input-range__track,
+html.am32 .input-range--disabled .input-range__track--active {
+  background: var(--am32-line);
+}
+
+html.am32 .input-range--disabled .input-range__slider {
+  background: var(--am32-panel);
+  border-color: var(--am32-border);
+}
+
+html.am32 .input-range__label,
+html.am32 #content .tab .gui-box .input-range__label span {
+  color: var(--am32-text);
+  font-size: 13px;
+}
+
+html.am32 .number .disabled,
+html.am32 .number-text .disabled {
+  background-color: transparent;
+}
+
+/* ---------------------------------------------------------------------------
+ * ESC cards
+ * ------------------------------------------------------------------------ */
+
+html.am32 #content .tab .flash__individual .esc.gui-box {
+  background-color: var(--am32-card);
+  border: 1px solid #0f172a;
+  border-radius: 12px;
+  box-shadow: 0 0 0 4px var(--am32-ok);
+  color: #1f2937;
+  margin: 6px 4px 22px;
+  width: calc(100% - 10px);
+}
+
+html.am32 #content .tab .flash__individual .esc.gui-box .gui-box-titlebar {
+  border-bottom: 0;
+}
+
+html.am32 #content .tab .flash__individual .esc.gui-box .spacer-box-title {
+  color: #1f2937;
+  padding-top: 8px;
+}
+
+html.am32 #content .tab .flash__individual .esc.gui-box span,
+html.am32 #content .tab .flash__individual .esc.gui-box label {
+  color: #0f172a;
+}
+
+html.am32 #content .tab .flash__individual .esc.gui-box .info-wrapper span.info-icon {
+  border-color: #1e3a8a;
+  color: #1e3a8a;
+}
+
+html.am32 .esc progress::-webkit-progress-bar {
+  background: var(--am32-panel);
+}
+
+html.am32 .esc progress::-webkit-progress-value {
+  background: #14b8a6;
+}
+
+/* ---------------------------------------------------------------------------
+ * Buttons
+ *
+ * Solid buttons the way Nuxt UI draws them on a dark page: light tone with
+ * dark text. Colors by what a button does, as in the AM32 configurator.
+ * ------------------------------------------------------------------------ */
+
+html.am32 .default-btn a,
+html.am32 .default-btn button {
+  background-color: #2dd4bf;
+  border: 1px solid #2dd4bf;
+  border-radius: 6px;
+  color: var(--am32-panel);
+  text-shadow: none;
+}
+
+html.am32 .default-btn a:hover,
+html.am32 .default-btn button:hover,
+html.am32 .default-btn a:active,
+html.am32 .default-btn button:active {
+  background-color: #14b8a6;
+  color: var(--am32-panel);
+  text-shadow: none;
+}
+
+html.am32 .default-btn a.disabled,
+html.am32 .default-btn button[disabled],
+html.am32 .default-btn button[disabled]:hover {
+  background-color: #2dd4bf;
+  border-color: #2dd4bf;
+  color: var(--am32-panel);
+  opacity: 0.45;
+}
+
+html.am32 .button-bar {
+  background-color: var(--am32-bar);
+  border-top: 1px solid var(--am32-line);
+  box-shadow: none;
+}
+
+html.am32 .generic-button button {
+  background-color: var(--am32-line);
+  border: 1px solid var(--am32-border);
+  border-radius: 6px;
+  color: var(--am32-text);
+  font-weight: 600;
+  text-shadow: none;
+}
+
+html.am32 .generic-button button[disabled] {
+  opacity: 0.45;
+}
+
+/* Read - primary */
+html.am32 .button-bar .buttons-right .generic-button:nth-child(1) button {
+  background-color: var(--am32-primary);
+  border-color: var(--am32-primary);
+  color: var(--am32-panel);
+}
+
+/* Write - blue */
+html.am32 .button-bar .buttons-right .generic-button:nth-child(2) button {
+  background-color: #60a5fa;
+  border-color: #60a5fa;
+  color: var(--am32-panel);
+}
+
+/* Flash - teal */
+html.am32 .button-bar .buttons-right .generic-button:nth-child(3) button {
+  background-color: #2dd4bf;
+  border-color: #2dd4bf;
+  color: var(--am32-panel);
+}
+
+/* Restore defaults - green */
+html.am32 .button-bar .buttons-right .generic-button:nth-child(4) button,
+html.am32 .button-bar .buttons-left .mobile-show .generic-button button {
+  background-color: #4ade80;
+  border-color: #4ade80;
+  color: var(--am32-panel);
+}
+
+/* Melody editor - violet */
+html.am32 .button-bar .buttons-right .generic-button:nth-child(5) button,
+html.am32 .button-bar .buttons-bottom .generic-button button {
+  background-color: #a78bfa;
+  border-color: #a78bfa;
+  color: var(--am32-panel);
+}
+
+/* ---------------------------------------------------------------------------
+ * Status bar
+ * ------------------------------------------------------------------------ */
+
+html.am32 .status-bar {
+  background-color: var(--am32-bar);
+  border-top: 1px solid var(--am32-line);
+  color: var(--am32-muted);
+}
+
+html.am32 .status-bar span {
+  border-right-color: var(--am32-line);
+}
+
+/* ---------------------------------------------------------------------------
+ * Dialogs
+ * ------------------------------------------------------------------------ */
+
+html.am32 .overlay .overlay__wrapper {
+  background: var(--am32-panel);
+  border: 1px solid var(--am32-line);
+  border-radius: 8px;
+  color: var(--am32-text);
+}
+
+html.am32 .overlay .overlay__wrapper h3 {
+  border-bottom-color: var(--am32-line);
+}
+
+/* Firmware selection: "Cancel" is not an action */
+html.am32 #firmware-selector .default-btn:last-child button {
+  background-color: var(--am32-line);
+  border-color: var(--am32-border);
+  color: var(--am32-text);
+}

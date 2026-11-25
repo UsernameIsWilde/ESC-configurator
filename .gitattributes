@@ -1,0 +1,7 @@
+# The patch has to stay byte for byte what "git diff" produced
+patches/*.patch text eol=lf
+
+# Shell script of the Gradle wrapper, used on Linux and macOS
+gradlew text eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
